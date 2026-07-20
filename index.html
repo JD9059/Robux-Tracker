@@ -271,7 +271,7 @@
   <div class="log-list">
     <h3>Earnings Log</h3>
     <ul id="history">
-      <li><span>No entries recorded yet.</span></li>
+      <li><span>Connecting to Firebase...</span></li>
     </ul>
 
     <!-- Restart / Clear All Button -->
@@ -279,15 +279,50 @@
   </div>
 </div>
 
-<script>
-  let entries = JSON.parse(localStorage.getItem("robuxEntries")) || [];
+<!-- Firebase Modular SDK Script -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+  import { getDatabase, ref, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+  // Your personal Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYSN3cqmzclEZp0FHzkACmbikyC6tROnU",
+    authDomain: "jack-s-robux-tracker.firebaseapp.com",
+    databaseURL: "https://jack-s-robux-tracker-default-rtdb.firebaseio.com",
+    projectId: "jack-s-robux-tracker",
+    storageBucket: "jack-s-robux-tracker.firebasestorage.app",
+    messagingSenderId: "194333445470",
+    appId: "1:194333445470:web:26e3589303f60321e413cf"
+  };
+
+  // Initialize Firebase Cloud Connection
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const entriesRef = ref(db, 'robux_entries');
+
+  let entries = [];
+
+  // --- LIVE CLOUD SYNCING ---
+  // This automatically listens for new entries or clears in real time!
+  onValue(entriesRef, (snapshot) => {
+    const data = snapshot.val();
+    entries = [];
+    
+    if (data) {
+      for (let id in data) {
+        entries.push({ id, ...data[id] });
+      }
+    }
+    
+    updateDashboard();
+  });
 
   // --- THEME SYSTEM ---
   function clearPhotoBackground() {
     document.body.style.backgroundImage = 'none';
   }
 
-  function setPresetTheme(type) {
+  window.setPresetTheme = function(type) {
     clearPhotoBackground();
     document.getElementById("customControls").classList.remove("active");
 
@@ -310,17 +345,17 @@
       document.documentElement.style.setProperty('--input-bg', '#121212');
       document.documentElement.style.setProperty('--border-color', '#262626');
     }
-  }
+  };
 
-  function toggleCustomControls() {
+  window.toggleCustomControls = function() {
     const controls = document.getElementById("customControls");
     controls.classList.toggle("active");
     if (controls.classList.contains("active")) {
-      applyCustomColor();
+      window.applyCustomColor();
     }
-  }
+  };
 
-  function applyCustomColor() {
+  window.applyCustomColor = function() {
     clearPhotoBackground();
     const hex = document.getElementById("colorPicker").value;
     const brightness = document.getElementById("brightnessSlider").value;
@@ -348,13 +383,13 @@
       document.documentElement.style.setProperty('--input-bg', '#ffffff');
       document.documentElement.style.setProperty('--border-color', '#d1d5db');
     }
-  }
+  };
 
-  function triggerPhotoUpload() {
+  window.triggerPhotoUpload = function() {
     document.getElementById("photoInput").click();
-  }
+  };
 
-  function handlePhotoUpload(event) {
+  window.handlePhotoUpload = function(event) {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -366,16 +401,16 @@
       };
       reader.readAsDataURL(file);
     }
-  }
+  };
 
   // --- DATA & DATE FUNCTIONS ---
-  function setTodayDate() {
+  window.setTodayDate = function() {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     document.getElementById("entryDate").value = `${year}-${month}-${day}`;
-  }
+  };
 
   function formatDisplayDate(dateString) {
     if (!dateString) return '';
@@ -409,7 +444,7 @@
     `).join("");
   }
 
-  function addEntry() {
+  window.addEntry = function() {
     const amountInput = document.getElementById("amount");
     const sourceInput = document.getElementById("source");
     const dateInput = document.getElementById("entryDate");
@@ -423,32 +458,30 @@
     const newEntry = {
       amount,
       source,
-      date
+      date,
+      timestamp: Date.now()
     };
 
-    entries.push(newEntry);
-    localStorage.setItem("robuxEntries", JSON.stringify(entries));
+    // Push entry directly to Firebase Cloud!
+    push(entriesRef, newEntry);
 
     amountInput.value = "";
     sourceInput.value = "";
-    setTodayDate();
-    updateDashboard();
-  }
+    window.setTodayDate();
+  };
 
   // --- RESTART / CLEAR FUNCTION ---
-  function restartTracker() {
+  window.restartTracker = function() {
     const confirmed = confirm("Are you sure you want to clear this page? Everything will be gone fresh as new.");
     
     if (confirmed) {
-      entries = [];
-      localStorage.removeItem("robuxEntries");
-      updateDashboard();
+      // Wipe all entries from the Firebase Cloud database
+      remove(entriesRef);
     }
-  }
+  };
 
-  // Initial setup
-  setTodayDate();
-  updateDashboard();
+  // Initial setup on page load
+  window.setTodayDate();
 </script>
 
 </body>
